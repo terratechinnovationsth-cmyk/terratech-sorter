@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terratech Innovations-Softgel Sorter Simulator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #0b0c10; color: #c5c6c7; font-family: 'Segoe UI', Tahoma, sans-serif; padding-top: 20px; padding-bottom: 20px; }
+        
+        .header-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #1f2833; padding-bottom: 15px; flex-wrap: wrap; gap: 15px; }
+        .header-title { color: #66fcf1; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin: 0; font-size: 1.8rem; }
+        .system-clock { font-family: monospace; font-size: 1.2rem; color: #45a29e; font-weight: bold; background: #111; padding: 8px 15px; border-radius: 5px; border: 1px solid #1f2833; }
+
+        .card { background-color: #1f2833; border: 1px solid #45a29e; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .card h5 { color: #66fcf1; font-weight: bold; border-bottom: 1px solid #45a29e; padding-bottom: 10px; margin-bottom: 20px; text-transform: uppercase; }
+        
+        .metric-value { font-size: 2.2rem; font-weight: bold; color: #66fcf1; line-height: 1; font-family: monospace; }
+        .metric-label { font-size: 0.8rem; color: #c5c6c7; margin-top: 5px; }
+        
+        .counter-value { font-size: 2.5rem; font-weight: 900; font-family: monospace; letter-spacing: 2px; }
+        .percent-display { font-size: 1.3rem; font-weight: bold; font-family: monospace; margin-top: 3px; }
+        
+        .accept-color { color: #00d2ff; text-shadow: 0 0 10px rgba(0, 210, 255, 0.5); }
+        .reject-color { color: #ff4d4d; text-shadow: 0 0 10px rgba(255, 77, 77, 0.5); }
+        .uptime-color { color: #f2a900; text-shadow: 0 0 10px rgba(242, 169, 0, 0.5); }
+
+        .form-label { color: #c5c6c7; font-size: 0.9rem; display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
+        .form-range::-webkit-slider-thumb { background: #66fcf1; }
+        .form-select { background-color: #0b0c10; color: #66fcf1; border: 1px solid #45a29e; }
+        
+        #conveyorCanvas { 
+            background: #111; 
+            border-radius: 5px; 
+            width: 100%; 
+            /* Height is controlled by JS for responsiveness */
+            border: 2px solid #1f2833; 
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+            display: block;
+        }
+
+        .warning-box { background-color: rgba(255, 77, 77, 0.15); border: 1px solid #ff4d4d; border-radius: 5px; padding: 15px; display: none; margin-top: 15px; color: #ff4d4d; font-size: 0.9rem; }
+        
+        .btn-power { font-weight: bold; font-size: 1.2rem; padding: 12px; letter-spacing: 1px; transition: all 0.3s; }
+        .btn-start { background-color: #00ff88; color: #0b0c10; border: none; box-shadow: 0 0 15px rgba(0,255,136,0.4); }
+        .btn-stop { background-color: #ff4d4d; color: #fff; border: none; box-shadow: 0 0 15px rgba(255,77,77,0.4); }
+
+        /* --- Media Queries สำหรับความ Responsive --- */
+        @media (max-width: 991px) {
+            .header-title { font-size: 1.5rem; text-align: center; width: 100%; }
+            .header-section { flex-direction: column; text-align: center; }
+        }
+        
+        @media (max-width: 768px) {
+            .metric-value { font-size: 1.6rem; }
+            .counter-value { font-size: 2rem; }
+            .percent-display { font-size: 1.1rem; }
+            .container-fluid { padding-left: 15px !important; padding-right: 15px !important; }
+            .metric-label { font-size: 0.7rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid px-4 px-lg-5">
+    
+    <div class="header-section">
+        <h2 class="header-title">Terratech Innovations-Softgel Sorter Simulator</h2>
+        <div class="system-clock" id="systemClock">--/--/---- --:--:--</div>
+    </div>
+    
+    <div class="row g-4">
+        <div class="col-xl-3 col-lg-4">
+            <div class="card p-3 p-md-4 h-100">
+                <h5>Control Panel</h5>
+                
+                <div class="mb-4">
+                    <label class="form-label"><span>เป้าหมาย (เม็ด/ชั่วโมง)</span><span id="targetVal" class="fw-bold text-info">400,000</span></label>
+                    <input type="range" class="form-range" id="targetSlider" min="50000" max="500000" step="10000" value="400000">
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label"><span>จำนวนเลนสายพาน</span><span id="lanesVal" class="fw-bold text-info">10</span></label>
+                    <input type="range" class="form-range" id="lanesSlider" min="2" max="15" step="1" value="10">
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">ความเร็วกล้อง (FPS)</label>
+                    <select class="form-select" id="fpsSelect">
+                        <option value="30">30 FPS (Webcam)</option>
+                        <option value="60" selected>60 FPS (Global Shutter)</option>
+                        <option value="120">120 FPS (High-Speed)</option>
+                    </select>
+                </div>
+
+                <div class="mb-4 p-3" style="background: rgba(102,252,241,0.05); border-left: 3px solid #66fcf1; border-radius: 4px;">
+                    <label class="form-label mb-1" style="color: #66fcf1; font-size: 0.8rem;">⚙️ BELT SPEED (AUTO SYNCHRONIZED)</label>
+                    <div class="fw-bold" style="font-size: 1.8rem; color: #fff; font-family: monospace;" id="autoBeltSpeedCmMin">0</div>
+                    <div style="font-size: 0.85rem; color: #a0a0b5; display: flex; justify-content: space-between;">
+                        <span>cm/min</span>
+                        <span style="font-size: 0.75rem;">*อิงระยะห่างเม็ด 3cm</span>
+                    </div>
+                </div>
+
+                <button id="powerBtn" class="btn btn-power btn-start w-100 mt-2">
+                    ▶ เริ่มเดินเครื่อง (START)
+                </button>
+
+                <div id="valveWarning" class="warning-box">
+                    <strong>⚠️ System Overload:</strong><br>ภาระวาล์วเกิน 30Hz ระบบจำเป็นต้องใช้ High-Speed Solenoid Valves
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-9 col-lg-8">
+            <div class="row g-2 g-md-3 mb-3">
+                <div class="col-6 col-lg-3">
+                    <div class="card p-2 p-md-3 text-center h-100 justify-content-center">
+                        <div class="metric-value" id="resTotalSec">111.1</div>
+                        <div class="metric-label">ความเร็วรวม (ชิ้น/วิ)</div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="card p-2 p-md-3 text-center h-100 justify-content-center">
+                        <div class="metric-value" id="resValveHz" style="color: #45a29e;">11.1</div>
+                        <div class="metric-label">ภาระลม (Hz) ต่อเลน</div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="card p-2 p-md-3 text-center h-100 justify-content-center">
+                        <div class="metric-value" id="resObjFrame" style="color: #00ff88;">1.85</div>
+                        <div class="metric-label">วัตถุใน 1 เฟรมภาพ</div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="card p-2 p-md-3 text-center h-100 justify-content-center" style="border-color: rgba(242, 169, 0, 0.4);">
+                        <div class="metric-value uptime-color" id="uptimeDisplay">00:00:00</div>
+                        <div class="metric-label">เวลาเดินเครื่อง (UPTIME)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-2 g-md-3 mb-3">
+                <div class="col-12 col-md-6">
+                    <div class="card p-3 d-flex flex-row justify-content-between align-items-center h-100" style="border-color: rgba(0, 210, 255, 0.4);">
+                        <div>
+                            <div class="metric-label mt-0 text-white" style="font-size: 1rem;">ยอดนับเม็ดดี</div>
+                            <div style="font-size: 0.8rem; color: #00d2ff; margin-bottom: 5px;">ACCEPT (PCS)</div>
+                            <div class="percent-display accept-color" id="acceptPercentDisplay">0.00%</div>
+                        </div>
+                        <div class="counter-value accept-color" id="acceptCountDisplay">0</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="card p-3 d-flex flex-row justify-content-between align-items-center h-100" style="border-color: rgba(255, 77, 77, 0.4);">
+                        <div>
+                            <div class="metric-label mt-0 text-white" style="font-size: 1rem;">ยอดคัดทิ้ง (เม็ดเสีย)</div>
+                            <div style="font-size: 0.8rem; color: #ff4d4d; margin-bottom: 5px;">REJECT (PCS)</div>
+                            <div class="percent-display reject-color" id="rejectPercentDisplay">0.00%</div>
+                        </div>
+                        <div class="counter-value reject-color" id="rejectCountDisplay">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card p-0 overflow-hidden">
+                <canvas id="conveyorCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- UI Elements ---
+    const targetSlider = document.getElementById('targetSlider');
+    const lanesSlider = document.getElementById('lanesSlider');
+    const fpsSelect = document.getElementById('fpsSelect');
+    
+    const targetVal = document.getElementById('targetVal');
+    const lanesVal = document.getElementById('lanesVal');
+    const autoBeltSpeedCmMin = document.getElementById('autoBeltSpeedCmMin');
+    
+    const resTotalSec = document.getElementById('resTotalSec');
+    const resValveHz = document.getElementById('resValveHz');
+    const resObjFrame = document.getElementById('resObjFrame');
+    const valveWarning = document.getElementById('valveWarning');
+    
+    const acceptCountDisplay = document.getElementById('acceptCountDisplay');
+    const rejectCountDisplay = document.getElementById('rejectCountDisplay');
+    const acceptPercentDisplay = document.getElementById('acceptPercentDisplay');
+    const rejectPercentDisplay = document.getElementById('rejectPercentDisplay');
+    
+    const systemClock = document.getElementById('systemClock');
+    const uptimeDisplay = document.getElementById('uptimeDisplay');
+    
+    const powerBtn = document.getElementById('powerBtn');
+    const canvas = document.getElementById('conveyorCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // --- State Variables ---
+    let isRunning = false;
+    let currentLanes = 10;
+    let calculatedAnimationSpeed = 0;
+    let spawnRate = 0;
+    
+    let softgels = [];
+    let airBlasts = [];
+    
+    // Time & Counters
+    let acceptCount = 0;
+    let rejectCount = 0;
+    let uptimeSeconds = 0;
+
+    // --- Dynamic System Constants (คำนวณตามขนาดจอ) ---
+    let CAMERA_Y = 0;
+    let SCAN_ZONE_START = 0;
+    const SCAN_ZONE_HEIGHT = 100;
+    let SCAN_ZONE_END = 0;
+    let NOZZLE_Y = 0;
+    const ITEM_PITCH_CM = 3;
+
+    // --- Responsive Canvas Setup ---
+    function resizeCanvas() {
+        canvas.width = canvas.parentElement.clientWidth;
+        
+        // ถ้าเป็นจอมือถือ ให้ความสูงสายพานสั้นลง (400px) เพื่อไม่ให้ต้องเลื่อนจอเยอะ
+        // ถ้าเป็นจอคอม/แท็บเล็ต ให้ยาวปกติ (600px)
+        if (window.innerWidth <= 768) {
+            canvas.height = 400;
+        } else {
+            canvas.height = 600;
+        }
+
+        // คำนวณตำแหน่ง Y ให้เป็นเปอร์เซ็นต์ตามความสูงหน้าจอที่เปลี่ยนไป
+        CAMERA_Y = canvas.height * 0.05; 
+        SCAN_ZONE_START = canvas.height * 0.25; 
+        SCAN_ZONE_END = SCAN_ZONE_START + SCAN_ZONE_HEIGHT;
+        NOZZLE_Y = canvas.height * 0.80; // Nozzle อยู่ที่ 80% ของจอด้านล่าง
+    }
+    
+    // อัปเดตเมื่อหมุนจอหรือปรับขนาด
+    window.addEventListener('resize', resizeCanvas);
+
+    // --- System Clock & Uptime Timer ---
+    setInterval(() => {
+        const now = new Date();
+        systemClock.innerText = now.toLocaleString('th-TH', { 
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit' 
+        });
+
+        if (isRunning) {
+            uptimeSeconds++;
+            let h = Math.floor(uptimeSeconds / 3600).toString().padStart(2, '0');
+            let m = Math.floor((uptimeSeconds % 3600) / 60).toString().padStart(2, '0');
+            let s = (uptimeSeconds % 60).toString().padStart(2, '0');
+            uptimeDisplay.innerText = `${h}:${m}:${s}`;
+        }
+    }, 1000);
+
+    // --- Math & Auto-Calculation ---
+    function updateMetrics() {
+        const target = parseInt(targetSlider.value);
+        const lanes = parseInt(lanesSlider.value);
+        const fps = parseInt(fpsSelect.value);
+
+        const totalPerSec = target / 3600;
+        const valveHz = totalPerSec / lanes;
+        const objsPerFrame = totalPerSec / fps;
+
+        targetVal.innerText = target.toLocaleString();
+        lanesVal.innerText = lanes;
+        
+        resTotalSec.innerText = totalPerSec.toFixed(1);
+        resValveHz.innerText = valveHz.toFixed(1);
+        resObjFrame.innerText = objsPerFrame.toFixed(2);
+
+        if (valveHz > 30) {
+            resValveHz.style.color = '#ff4d4d';
+            valveWarning.style.display = 'block';
+        } else {
+            resValveHz.style.color = '#66fcf1';
+            valveWarning.style.display = 'none';
+        }
+
+        const speedCmSec = valveHz * ITEM_PITCH_CM;
+        const speedCmMin = speedCmSec * 60;
+        
+        autoBeltSpeedCmMin.innerText = speedCmMin.toLocaleString(undefined, {maximumFractionDigits: 1});
+        
+        // ปรับความเร็วแอนิเมชันให้พอดี (ยิ่งจอเตี้ย ยิ่งต้องขยับน้อยลงเพื่อความสมจริง)
+        let scaleFactor = (canvas.height / 600);
+        calculatedAnimationSpeed = Math.min(15, 2 + (valveHz * 0.25)) * scaleFactor; 
+        
+        currentLanes = lanes;
+        spawnRate = totalPerSec / 60; 
+    }
+
+    // --- Update Percentages Function ---
+    function updatePercentages() {
+        let totalCount = acceptCount + rejectCount;
+        if (totalCount > 0) {
+            let acceptPct = (acceptCount / totalCount) * 100;
+            let rejectPct = (rejectCount / totalCount) * 100;
+            acceptPercentDisplay.innerText = acceptPct.toFixed(2) + "%";
+            rejectPercentDisplay.innerText = rejectPct.toFixed(2) + "%";
+        }
+    }
+
+    // --- Power Button Logic ---
+    powerBtn.addEventListener('click', () => {
+        isRunning = !isRunning;
+        if (isRunning) {
+            powerBtn.classList.remove('btn-start');
+            powerBtn.classList.add('btn-stop');
+            powerBtn.innerHTML = '⏹ หยุดเดินเครื่อง (STOP)';
+        } else {
+            powerBtn.classList.remove('btn-stop');
+            powerBtn.classList.add('btn-start');
+            powerBtn.innerHTML = '▶ เริ่มเดินเครื่อง (START)';
+        }
+    });
+
+    // --- Classes ---
+    class AirBlast {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+            this.life = 15;
+            this.maxLife = 15;
+        }
+        draw() {
+            ctx.strokeStyle = `rgba(255, 255, 255, ${this.life / this.maxLife})`;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(this.x, this.y);
+            ctx.lineTo(this.x + 30, this.y - 10);
+            ctx.moveTo(this.x, this.y);
+            ctx.lineTo(this.x + 40, this.y);
+            ctx.moveTo(this.x, this.y);
+            ctx.lineTo(this.x + 30, this.y + 10);
+            ctx.stroke();
+        }
+        update() { this.life--; }
+    }
+
+    class Softgel {
+        constructor() {
+            this.lane = Math.floor(Math.random() * currentLanes);
+            this.laneWidth = canvas.width / currentLanes;
+            this.x = (this.lane * this.laneWidth) + (this.laneWidth / 2);
+            this.y = -20;
+            this.size = Math.min(this.laneWidth * 0.25, 12);
+            
+            // โอกาสเม็ดเสีย 5%
+            this.isReject = Math.random() < 0.05; 
+            
+            this.detected = false;
+            this.blown = false;
+            this.blowVelocityX = 0;
+            this.blowVelocityY = 0;
+        }
+
+        update() {
+            if (this.blown) {
+                this.x += this.blowVelocityX;
+                this.y += this.blowVelocityY;
+            } else {
+                this.y += calculatedAnimationSpeed; 
+            }
+
+            if (this.y > SCAN_ZONE_START && this.y < SCAN_ZONE_END) {
+                this.detected = true;
+            } else {
+                this.detected = false;
+            }
+
+            if (this.isReject && !this.blown && this.y >= NOZZLE_Y && this.y <= NOZZLE_Y + Math.max(10, calculatedAnimationSpeed)) {
+                this.blown = true;
+                this.blowVelocityX = 10 + Math.random() * 5; 
+                this.blowVelocityY = calculatedAnimationSpeed * 0.5; 
+                airBlasts.push(new AirBlast(this.x - 15, this.y));
+            }
+        }
+
+        draw() {
+            ctx.beginPath();
+            ctx.fillStyle = this.isReject ? '#ff4d4d' : '#00d2ff';
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.beginPath();
+            ctx.arc(this.x - (this.size*0.25), this.y - (this.size*0.25), this.size * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (this.detected && !this.blown) {
+                ctx.strokeStyle = this.isReject ? '#ff4d4d' : '#00ff88';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(this.x - this.size - 4, this.y - this.size - 4, (this.size * 2) + 8, (this.size * 2) + 8);
+                
+                ctx.fillStyle = ctx.strokeStyle;
+                ctx.font = "9px Arial";
+                ctx.fillText(this.isReject ? "98%" : "99%", this.x - 10, this.y - this.size - 6);
+            }
+        }
+    }
+
+    function drawMachineParts() {
+        const laneWidth = canvas.width / currentLanes;
+
+        // วาดเลน
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 2;
+        for (let i = 1; i < currentLanes; i++) {
+            ctx.beginPath();
+            ctx.moveTo(i * laneWidth, 0);
+            ctx.lineTo(i * laneWidth, canvas.height);
+            ctx.stroke();
+        }
+
+        // วาด Zone สแกน
+        ctx.fillStyle = isRunning ? 'rgba(102, 252, 241, 0.08)' : 'rgba(102, 252, 241, 0.02)';
+        ctx.fillRect(0, SCAN_ZONE_START, canvas.width, SCAN_ZONE_HEIGHT);
+        
+        ctx.strokeStyle = isRunning ? 'rgba(102, 252, 241, 0.9)' : 'rgba(102, 252, 241, 0.3)';
+        ctx.lineWidth = isRunning ? 2 : 1;
+        ctx.beginPath();
+        ctx.moveTo(0, SCAN_ZONE_START);
+        ctx.lineTo(canvas.width, SCAN_ZONE_START);
+        ctx.moveTo(0, SCAN_ZONE_END);
+        ctx.lineTo(canvas.width, SCAN_ZONE_END);
+        ctx.stroke();
+        
+        ctx.fillStyle = isRunning ? '#66fcf1' : '#45a29e';
+        ctx.font = "10px sans-serif";
+        ctx.fillText(isRunning ? "AI SCAN [ACTIVE]" : "AI SCAN [STANDBY]", 10, SCAN_ZONE_START - 5);
+
+        // วาดกล้อง
+        const camX = canvas.width / 2;
+        ctx.fillStyle = '#333';
+        ctx.fillRect(camX - 25, 0, 50, CAMERA_Y + 10);
+        ctx.fillStyle = '#111';
+        ctx.beginPath();
+        ctx.arc(camX, CAMERA_Y, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = isRunning ? '#00ff88' : '#ff4d4d';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(camX, CAMERA_Y, 8, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        if(isRunning) {
+            ctx.fillStyle = 'rgba(102, 252, 241, 0.03)';
+            ctx.beginPath();
+            ctx.moveTo(camX - 8, CAMERA_Y + 10);
+            ctx.lineTo(0, SCAN_ZONE_START);
+            ctx.lineTo(canvas.width, SCAN_ZONE_START);
+            ctx.lineTo(camX + 8, CAMERA_Y + 10);
+            ctx.fill();
+        }
+
+        // วาด Nozzles
+        ctx.fillStyle = '#1f2833';
+        ctx.fillRect(0, NOZZLE_Y - 15, canvas.width, 30);
+        for (let i = 0; i < currentLanes; i++) {
+            const centerX = (i * laneWidth) + (laneWidth / 2);
+            ctx.fillStyle = '#45a29e';
+            ctx.fillRect(centerX - 10, NOZZLE_Y - 8, 8, 16);
+            ctx.fillStyle = isRunning ? '#66fcf1' : '#45a29e';
+            ctx.beginPath();
+            ctx.moveTo(centerX - 2, NOZZLE_Y - 4);
+            ctx.lineTo(centerX + 6, NOZZLE_Y);
+            ctx.lineTo(centerX - 2, NOZZLE_Y + 4);
+            ctx.fill();
+        }
+        ctx.fillStyle = '#c5c6c7';
+        ctx.font = "10px sans-serif";
+        ctx.fillText("AIR EJECTION SYSTEM", 10, NOZZLE_Y - 20);
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawMachineParts();
+
+        if (isRunning) {
+            if (Math.random() < spawnRate) {
+                let count = Math.max(1, Math.floor(spawnRate));
+                for(let i=0; i<count; i++) softgels.push(new Softgel());
+            }
+
+            for (let i = softgels.length - 1; i >= 0; i--) {
+                softgels[i].update();
+                softgels[i].draw();
+                
+                if (softgels[i].y > canvas.height + 50 || softgels[i].x > canvas.width + 50) {
+                    if (softgels[i].isReject) {
+                        rejectCount++;
+                        rejectCountDisplay.innerText = rejectCount.toLocaleString();
+                    } else {
+                        acceptCount++;
+                        acceptCountDisplay.innerText = acceptCount.toLocaleString();
+                    }
+                    
+                    updatePercentages();
+                    softgels.splice(i, 1);
+                }
+            }
+
+            for (let i = airBlasts.length - 1; i >= 0; i--) {
+                airBlasts[i].update();
+                airBlasts[i].draw();
+                if (airBlasts[i].life <= 0) {
+                    airBlasts.splice(i, 1);
+                }
+            }
+        } else {
+            for (let i = 0; i < softgels.length; i++) {
+                softgels[i].draw();
+            }
+        }
+
+        requestAnimationFrame(animate);
+    }
+
+    // --- Listeners ---
+    targetSlider.addEventListener('input', updateMetrics);
+    lanesSlider.addEventListener('input', updateMetrics);
+    fpsSelect.addEventListener('change', updateMetrics);
+
+    // Initial Setup
+    resizeCanvas();
+    updateMetrics();
+    animate();
+
+</script>
+</body>
+</html>
